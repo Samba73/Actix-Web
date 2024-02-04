@@ -1,5 +1,7 @@
-use  actix_web::{guard, get, post, web, App, HttpResponse, HttpServer, Responder};
+use  actix_web::{error, guard, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use std::sync::{Arc,Mutex};
+use serde_derive::Deserialize;
+use actix_web::web::PathConfig;
 
 struct AppState {
     app_name: String,
@@ -7,6 +9,12 @@ struct AppState {
 
 struct AppStateWithCounter {
     counter: Mutex<i32>,
+}
+
+#[derive(Deserialize)]
+struct Info {
+    user_id: u32,
+    friend: String,
 }
 
 fn scoped(cfg: &mut web::ServiceConfig) {
@@ -17,6 +25,14 @@ fn scoped(cfg: &mut web::ServiceConfig) {
     );
 }
 
+// #[get("/users/{user_id}/{friend}")]
+//async fn index(path: web::Path<(i32, String)>) -> Result<String> { // opt 1
+//async fn index(info: web::Path<Info>) -> Result<String> {  // opt 2
+  async fn index(info: web::Path<Info>) -> Result<String> {
+    //let (user_id, friend) = path.into_inner(); // opt 1
+    
+    Ok(format!("Welcome {}, with ID {}!", info.friend, info.user_id))
+}
 
 #[get("/")]
 async fn hello(data: web::Data<AppState>) -> impl Responder {
@@ -58,7 +74,19 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new().service(
+            
             web::scope("/api").configure(scoped))
+            .service(
+                web::resource("/users/{user_id}/{friend}")
+                    .app_data(PathConfig::default().error_handler(|err, req| {
+                        error::InternalError::from_response(
+                            err,
+                            HttpResponse::Conflict().into(),
+                        )
+                        .into()
+                    }))
+                    .route(web::get().to(index)),
+            )
             .service(
             web::scope("/app")
             // .guard(guard::Post())
@@ -67,7 +95,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
             .service(count)
             .service(counter)
-            
+            // .service(index)
         )
             .app_data(app_data.clone())
             // .app_data(web::Data::new(AppState{

@@ -537,6 +537,8 @@ name = "hello-world"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
