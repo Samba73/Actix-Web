@@ -1,7 +1,7 @@
 use  actix_web::{error, guard, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use std::sync::{Arc,Mutex};
 use serde_derive::Deserialize;
-use actix_web::web::PathConfig;
+use actix_web::web::JsonConfig;
 
 struct AppState {
     app_name: String,
@@ -25,17 +25,17 @@ fn scoped(cfg: &mut web::ServiceConfig) {
     );
 }
 
-#[get("/users/{user_id}/{friend}")]
+// #[get("/users/{user_id}/{friend}")]
 //async fn index(path: web::Path<(i32, String)>) -> Result<String> { // opt 1
 //async fn index(info: web::Path<Info>) -> Result<String> {  // opt 2
- async fn index(info: web::Path<Info>) -> Result<String> { // didnt work
+ async fn index(info: web::Json<Info>) -> impl Responder { // didnt work
 // async fn index(req: HttpRequest) -> Result<String> {
     //let (user_id, friend) = path.into_inner(); // opt 1
-    let user_id: i32 = req.match_info().get("user_id").unwrap().parse().unwrap();
-    let friend: String = req.match_info().get("friend").unwrap().parse().unwrap();
+    // let user_id: i32 = req.match_info().get("user_id").unwrap().parse().unwrap();
+    // let friend: String = req.match_info().get("friend").unwrap().parse().unwrap();
 
-    println!("{}, {}", user_id, friend);
-    Ok(format!("Welcome {}, with ID {}!", friend, user_id))
+    // println!("{}, {}", user_id, friend);
+        format!("Welcome {}, with ID {}!", info.friend, info.user_id)
 }
 
 #[get("/")]
@@ -82,14 +82,14 @@ async fn main() -> std::io::Result<()> {
             web::scope("/api").configure(scoped))
             .service(
                 web::resource("/users/{user_id}/{friend}")
-                    .app_data(PathConfig::default().error_handler(|err, req| {
+                    .app_data(JsonConfig::default().error_handler(|err, req| {
                         error::InternalError::from_response(
                             err,
-                            HttpResponse::Conflict().into(),
+                            HttpResponse::Conflict().finish(),
                         )
                         .into()
                     }))
-                    .route(web::get().to(index)),
+                    .route(web::post().to(index)),
             )
             .service(
             web::scope("/app")
