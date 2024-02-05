@@ -28,11 +28,13 @@ fn scoped(cfg: &mut web::ServiceConfig) {
 #[get("/users/{user_id}/{friend}")]
 //async fn index(path: web::Path<(i32, String)>) -> Result<String> { // opt 1
 //async fn index(info: web::Path<Info>) -> Result<String> {  // opt 2
- // async fn index(info: web::Path<Info>) -> Result<String> { // didnt work
-async fn index(req: HttpRequest) -> Result<String> {
+ async fn index(info: web::Path<Info>) -> Result<String> { // didnt work
+// async fn index(req: HttpRequest) -> Result<String> {
     //let (user_id, friend) = path.into_inner(); // opt 1
     let user_id: i32 = req.match_info().get("user_id").unwrap().parse().unwrap();
-    let friend = req.match_info().get("friend").unwrap();
+    let friend: String = req.match_info().get("friend").unwrap().parse().unwrap();
+
+    println!("{}, {}", user_id, friend);
     Ok(format!("Welcome {}, with ID {}!", friend, user_id))
 }
 
@@ -78,17 +80,17 @@ async fn main() -> std::io::Result<()> {
         App::new().service(
             
             web::scope("/api").configure(scoped))
-            // .service(
-            //     web::resource("/users/{user_id}/{friend}")
-            //         .app_data(PathConfig::default().error_handler(|err, req| {
-            //             error::InternalError::from_response(
-            //                 err,
-            //                 HttpResponse::Conflict().into(),
-            //             )
-            //             .into()
-            //         }))
-            //         .route(web::get().to(index)),
-            // )
+            .service(
+                web::resource("/users/{user_id}/{friend}")
+                    .app_data(PathConfig::default().error_handler(|err, req| {
+                        error::InternalError::from_response(
+                            err,
+                            HttpResponse::Conflict().into(),
+                        )
+                        .into()
+                    }))
+                    .route(web::get().to(index)),
+            )
             .service(
             web::scope("/app")
             // .guard(guard::Post())
@@ -97,7 +99,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
             .service(count)
             .service(counter)
-            .service(index)
+            // .service(index)
         )
             .app_data(app_data.clone())
 
