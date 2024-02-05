@@ -1,4 +1,4 @@
-use  actix_web::{error, guard, get, post, web, App, HttpResponse, HttpServer, Responder, Result};
+use  actix_web::{error, guard, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Result};
 use std::sync::{Arc,Mutex};
 use serde_derive::Deserialize;
 use actix_web::web::PathConfig;
@@ -25,13 +25,15 @@ fn scoped(cfg: &mut web::ServiceConfig) {
     );
 }
 
-// #[get("/users/{user_id}/{friend}")]
+#[get("/users/{user_id}/{friend}")]
 //async fn index(path: web::Path<(i32, String)>) -> Result<String> { // opt 1
 //async fn index(info: web::Path<Info>) -> Result<String> {  // opt 2
-  async fn index(info: web::Path<Info>) -> Result<String> {
+ // async fn index(info: web::Path<Info>) -> Result<String> { // didnt work
+async fn index(req: HttpRequest) -> Result<String> {
     //let (user_id, friend) = path.into_inner(); // opt 1
-    
-    Ok(format!("Welcome {}, with ID {}!", info.friend, info.user_id))
+    let user_id: i32 = req.match_info().get("user_id").unwrap().parse().unwrap();
+    let friend = req.match_info().get("friend").unwrap();
+    Ok(format!("Welcome {}, with ID {}!", friend, user_id))
 }
 
 #[get("/")]
@@ -76,17 +78,17 @@ async fn main() -> std::io::Result<()> {
         App::new().service(
             
             web::scope("/api").configure(scoped))
-            .service(
-                web::resource("/users/{user_id}/{friend}")
-                    .app_data(PathConfig::default().error_handler(|err, req| {
-                        error::InternalError::from_response(
-                            err,
-                            HttpResponse::Conflict().into(),
-                        )
-                        .into()
-                    }))
-                    .route(web::get().to(index)),
-            )
+            // .service(
+            //     web::resource("/users/{user_id}/{friend}")
+            //         .app_data(PathConfig::default().error_handler(|err, req| {
+            //             error::InternalError::from_response(
+            //                 err,
+            //                 HttpResponse::Conflict().into(),
+            //             )
+            //             .into()
+            //         }))
+            //         .route(web::get().to(index)),
+            // )
             .service(
             web::scope("/app")
             // .guard(guard::Post())
@@ -95,23 +97,16 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
             .service(count)
             .service(counter)
-            // .service(index)
+            .service(index)
         )
             .app_data(app_data.clone())
-            // .app_data(web::Data::new(AppState{
-            //     app_name: "My first actix-web app".to_string(),
-            // }))
+
             .app_data(echo_string.clone()) // comment 1
-            // .app_data(web::Data::new(String::from("ECHO")))
+
             .app_data(counter_data.clone())
-            // .app_data(Arc::clone(a_counter_data)) // not required to use Arc::clone in web::Data
+
             .app_data(a_counter_data.clone())
-            // .service(hello)
-            // .service(echo)
-            // .service(
-            //     web::scope("/app")
-            //         .route("/hey", web::get().to(manual_hello))
-            // )
+        
 
     })
     .bind(("127.0.0.1",8085))?
